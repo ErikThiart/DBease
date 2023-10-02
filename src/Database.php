@@ -1,6 +1,7 @@
 <?php
 
-namespace Core\src;
+namespace DBease;
+
 /**
  * Database Class
  *
