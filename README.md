@@ -49,7 +49,7 @@ $data = [
 $db->insert('users', $data);
 ```
 
-\### Update Data
+### Update Data
 
 ```php
 $updateData = ['status' => 'active'];
