@@ -85,7 +85,7 @@ $results = $db
     ->select('name, price')
     ->limit(5)
     ->offset(10)
-    ->findAll('products', ['category' => 'Electronics']);
+    ->fetchWithOffset('products', ['category' => 'Electronics']);
 ```
 
 ### More Examples and Documentation
