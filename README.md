@@ -1,111 +1,148 @@
-# DBease: A Lightweight Database Abstraction Library for MySQL
+# DBease
 
-[![License](https://img.shields.io/badge/License-GNU-blue.svg)](LICENSE)
-[![Latest Version](https://img.shields.io/github/v/release/erikthiart/dbease)](https://github.com/erikthiart/dbease/releases)
+A small PHP library that wraps PDO for MySQL, so everyday queries take one line instead of ten.
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Packagist](https://img.shields.io/packagist/v/erikthiart/dbease)](https://packagist.org/packages/erikthiart/dbease)
-[![GitHub Issues](https://img.shields.io/github/issues/erikthiart/dbease)](https://github.com/erikthiart/dbease/issues)
+[![PHP](https://img.shields.io/badge/PHP-7.2%2B-777bb4)](composer.json)
+[![Issues](https://img.shields.io/github/issues/ErikThiart/DBease)](https://github.com/ErikThiart/DBease/issues)
 
-DBease is a lightweight and easy-to-use PHP database abstraction library designed for MySQL, using the power of PDO. It simplifies common database operations and offers a flexible query builder, making it a valuable tool for developers who want to interact with databases efficiently.
+```php
+$db = new DBease\Database(['database' => 'shop', 'username' => 'app', 'password' => 'secret']);
 
-## Features
+$db->insert('users', ['name' => 'Ada', 'email' => 'ada@example.com']);
+$active = $db->findAll('users', ['status' => 'active']);
+```
 
-- **Simplified CRUD Operations:** Perform Create, Read, Update, and Delete (CRUD) operations with ease.
-- **Flexible Query Builder:** Build complex queries with a fluent interface.
-- **Custom SQL Execution:** Execute raw SQL queries when needed.
-- **Exception Handling:** Robust error handling with detailed exceptions.
-- **Query Logging:** Keep track of executed queries for debugging.
-- **Table and Column Existence Checks:** Verify the existence of tables and columns.
-- **Composer-Friendly:** Easily install and manage using Composer.
+Values are always sent as prepared-statement parameters. Exceptions are on, results come back as associative arrays, and every query is logged for debugging.
 
-## Installation
+## Why use it
 
-DBease can be installed via [Composer](https://getcomposer.org/):
+- You want prepared statements and PDO exceptions without writing the boilerplate each time.
+- You do not want an ORM, models or migrations. DBease only wraps the SQL you would write anyway.
+- It is one class with no dependencies, so it is easy to read, vendor or fork.
+
+## Install
 
 ```bash
 composer require erikthiart/dbease
 ```
 
-## Getting Started
+Requires PHP 7.2 or newer with the `pdo_mysql` extension.
 
-### Initialize DBease
+## Connect
+
+Pass settings to the constructor, or set environment variables. The constructor reads them in this order: the array, then the environment, then the defaults.
+
+| Array key  | Environment variable | Default       |
+|------------|----------------------|---------------|
+| `host`     | `DB_HOST`            | `127.0.0.1`   |
+| `port`     | `DB_PORT`            | `3306`        |
+| `database` | `DB_NAME`            | `my_database` |
+| `username` | `DB_USER`            | `my_user`     |
+| `password` | `DB_PASS`            | empty         |
+| `charset`  | `DB_CHARSET`         | `utf8mb4`     |
 
 ```php
 use DBease\Database;
 
-// Initialize the database connection
-$db = new Database();
+$db = new Database([
+    'host'     => '127.0.0.1',
+    'database' => 'shop',
+    'username' => 'app',
+    'password' => getenv('SHOP_DB_PASSWORD'),
+]);
 ```
 
-### Insert Data
+A failed connection throws `PDOException`.
+
+## Usage
+
+### Create
 
 ```php
-$data = [
-    'name' => 'John Doe',
-    'email' => 'john@example.com',
-    'age' => 30,
-];
+$db->insert('users', ['name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30]);
 
-// Insert into the 'users' table
-$db->insert('users', $data);
+$db->insertMultiple('users', [
+    ['name' => 'Ada',   'email' => 'ada@example.com',   'age' => 36],
+    ['name' => 'Grace', 'email' => 'grace@example.com', 'age' => 45],
+]);
+
+$id = $db->lastInsertId();
 ```
 
-### Update Data
+### Read
 
 ```php
-$updateData = ['status' => 'active'];
-
-// Update records in the 'users' table where 'id' is 1
-$db->update('users', $updateData, ['id' => 1]);
+$user        = $db->find('users', ['id' => 1]);              // one row, or null
+$activeUsers = $db->findAll('users', ['status' => 'active']); // array of rows
+$total       = $db->count('users', ['status' => 'active']);
 ```
 
-### Query Data
+### Update and delete
 
 ```php
-// Find a single record from the 'users' table where 'id' is 1
-$user = $db->find('users', ['id' => 1]);
-
-// Find all active users
-$activeUsers = $db->findAll('users', ['status' => 'active']);
+$db->update('users', ['status' => 'active'], ['id' => 1]);
+$db->delete('users', ['id' => 1]);
 ```
 
-### Execute Raw SQL
+### Raw SQL
 
 ```php
-// Execute a custom SQL query
-$sql = "SELECT * FROM products WHERE category = :category";
-$params = ['category' => 'Electronics'];
-$results = $db->raw($sql, $params);
+$rows = $db->raw(
+    'SELECT * FROM products WHERE category = :category',
+    ['category' => 'Electronics']
+);
 ```
 
-### Query Builder
+### Pagination
 
 ```php
-// Build complex queries
-$results = $db
+$rows = $db
     ->select('name, price')
     ->limit(5)
     ->offset(10)
     ->fetchWithOffset('products', ['category' => 'Electronics']);
 ```
 
-### More Examples and Documentation
+### Schema checks and debugging
 
-For more examples and detailed documentation, please refer to the [DBease Wiki](https://github.com/erikthiart/dbease/wiki).
+```php
+$db->tableExists('users');          // true or false
+$db->columnExists('users', 'email'); // true or false
+$db->getQueryLog();                  // every query run so far
+```
+
+## Security notes
+
+- **Values** are bound as parameters, so they are safe to pass user input.
+- **Table and column names** are placed into the SQL as written. Never pass user input as a table name, a column name or a `select()` field list. Use a fixed list in your code.
+- Keep database credentials in environment variables or protected config, not in source control.
+
+## Method reference
+
+| Method | Returns |
+|--------|---------|
+| `insert($table, $data)` | `bool` |
+| `insertMultiple($table, $rows)` | `bool` |
+| `update($table, $data, $where)` | `bool` |
+| `delete($table, $conditions)` | `bool` |
+| `find($table, $conditions = [])` | row array or `null` |
+| `findAll($table, $conditions = [])` | array of rows |
+| `count($table, $conditions = [])` | `int` |
+| `raw($sql, $params = [])` | array of rows |
+| `select()`, `limit()`, `offset()`, `fetchWithOffset()` | chainable builder |
+| `tableExists()`, `columnExists()` | `bool` |
+| `lastInsertId()`, `getQueryLog()` | last ID, log array |
 
 ## Contributing
 
-Contributions are welcome! Please check the [contribution guidelines](CONTRIBUTING.md) for details.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-DBease is open-source software licensed under the [GNU General Public License](LICENSE).
+GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
 
-## Credits
+## Author
 
-DBease is developed and maintained by [Erik Thiart]([https://github.com/yourusername](https://github.com/ErikThiart)).
-
-## Support
-
-If you have questions or need assistance, feel free to [open an issue](https://github.com/erikthiart/dbease/issues).
-
----
+Built and maintained by [Erik Thiart](https://github.com/ErikThiart), a freelance PHP developer in South Africa. Questions or work enquiries: [erikthiart.com](https://erikthiart.com).

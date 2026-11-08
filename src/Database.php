@@ -2,6 +2,10 @@
 
 namespace DBease;
 
+use InvalidArgumentException;
+use PDO;
+use PDOException;
+
 /**
  * Database Class
  *
@@ -21,16 +25,23 @@ class Database
 
     /**
      * Constructor. Initializes the PDO instance.
+     *
+     * Settings come from the $config array, then the DB_HOST, DB_PORT, DB_NAME,
+     * DB_USER, DB_PASS and DB_CHARSET environment variables, then these defaults.
+     *
+     * @param array $config Optional keys: host, port, database, username, password, charset.
+     * @throws PDOException If the connection fails.
      */
-    public function __construct()
+    public function __construct(array $config = [])
     {
-        $host = '127.0.0.1';
-        $db = 'my_database';
-        $user = 'my_user';
-        $pass = 'my_password';
-        $charset = 'utf8mb4';
+        $host = $config['host'] ?? getenv('DB_HOST') ?: '127.0.0.1';
+        $port = $config['port'] ?? getenv('DB_PORT') ?: '3306';
+        $db = $config['database'] ?? getenv('DB_NAME') ?: 'my_database';
+        $user = $config['username'] ?? getenv('DB_USER') ?: 'my_user';
+        $pass = $config['password'] ?? getenv('DB_PASS') ?: '';
+        $charset = $config['charset'] ?? getenv('DB_CHARSET') ?: 'utf8mb4';
 
-        $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+        $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=$charset";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -39,8 +50,8 @@ class Database
 
         try {
             $this->pdo = new PDO($dsn, $user, $pass, $options);
-        } catch (\PDOException $e) {
-            throw new \PDOException($e->getMessage(), (int)$e->getCode());
+        } catch (PDOException $e) {
+            throw new PDOException($e->getMessage(), (int)$e->getCode());
         }
     }
 
